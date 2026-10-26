@@ -1,0 +1,15 @@
+.venv/
+.venv-mlx/
+__pycache__/
+*.pyc
+.DS_Store
+
+# sorties de l'éditeur et essais
+audio/
+travaux/
+*.wav
+*.m4a
+!voix/*.wav
+
+# données téléchargées (FLEURS, etc.)
+fleurs_dl/

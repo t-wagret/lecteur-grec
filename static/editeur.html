@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecteur grec</title>
+<style>
+:root {
+  --fond: #f7f5f0; --carte: #ffffff; --texte: #1d1b16; --doux: #6b665c; --ligne: #e2ddd2;
+  --accent: #8a5a12; --accent-fond: #f3e6cf; --danger: #a33a2a; --selection: #2f6fde;
+  --grec: "GFS Didot", "Gentium Plus", "Palatino", "Noto Serif", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fond: #17160f; --carte: #211f18; --texte: #ece6d8; --doux: #a39d8e; --ligne: #39352a;
+    --accent: #e0a94a; --accent-fond: #3a2f1a; --danger: #e07a6a; --selection: #6d9cf0;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 15px/1.5 -apple-system, system-ui, sans-serif; }
+header { display: flex; gap: 12px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--ligne); background: var(--carte); flex-wrap: wrap; }
+header h1 { font-size: 16px; margin: 0 8px 0 0; }
+#recherche-zone { position: relative; flex: 1; min-width: 220px; max-width: 520px; }
+#recherche { width: 100%; padding: 7px 10px; border: 1px solid var(--ligne); border-radius: 8px; background: var(--fond); color: var(--texte); font-size: 14px; }
+#resultats { position: absolute; top: 38px; left: 0; right: 0; background: var(--carte); border: 1px solid var(--ligne); border-radius: 8px; max-height: 60vh; overflow: auto; z-index: 20; display: none; box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+#resultats div { padding: 7px 10px; cursor: pointer; border-bottom: 1px solid var(--ligne); }
+#resultats div:hover { background: var(--accent-fond); }
+#resultats small { color: var(--doux); }
+.annotee { color: var(--accent); font-weight: 600; }
+button { font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 7px; border: 1px solid var(--ligne); background: var(--carte); color: var(--texte); cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.principal { background: var(--accent); color: var(--carte); border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: default; }
+#barre { position: sticky; top: 0; z-index: 10; background: var(--carte); border-bottom: 1px solid var(--ligne); padding: 8px 16px; display: none; }
+.rangee { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin: 3px 0; }
+.rangee > b { font-size: 12px; color: var(--doux); font-weight: 600; width: 64px; }
+.puce { padding: 3px 8px; border-radius: 999px; font-size: 12px; border: 1px solid transparent; }
+.puce:hover { border-color: var(--texte); }
+main { max-width: 980px; margin: 0 auto; padding: 16px; }
+#accueil { color: var(--doux); padding: 40px 0; text-align: center; }
+#oeuvre-tete h2 { font-family: var(--grec); font-size: 26px; margin: 4px 0; font-weight: normal; }
+#oeuvre-tete p { margin: 2px 0; color: var(--doux); font-size: 13px; }
+#texte { font-family: var(--grec); font-size: 21px; line-height: 2.25; background: var(--carte); border: 1px solid var(--ligne); border-radius: 12px; padding: 18px 22px; margin-top: 12px; user-select: text; }
+.sec { font: 11px -apple-system, system-ui, sans-serif; color: var(--doux); margin: 0 4px 0 8px; vertical-align: super; user-select: none; }
+.inter { font: italic 13px -apple-system, system-ui, sans-serif; color: var(--doux); border: 1px dashed var(--ligne); border-radius: 6px; padding: 1px 6px; margin: 0 6px; user-select: none; }
+.mot { padding: 2px 1px; border-radius: 4px; cursor: text; }
+.mot.sel { outline: 2px solid var(--selection); outline-offset: 1px; }
+.v-lent { letter-spacing: .14em; } .v-posé { letter-spacing: .06em; }
+.v-vif { font-style: italic; } .v-rapide { font-style: italic; letter-spacing: -.03em; }
+.etiq { font: 600 9.5px -apple-system, system-ui, sans-serif; vertical-align: super; margin-right: 2px; padding: 0 4px; border-radius: 4px; user-select: none; opacity: .9; }
+.pause { font: 700 12px -apple-system, system-ui, sans-serif; color: var(--accent); margin: 0 3px; cursor: pointer; user-select: none; }
+.pause:hover { color: var(--danger); text-decoration: line-through; }
+.pause.drame { background: var(--accent); color: var(--carte); border-radius: 4px; padding: 0 4px; }
+#pied { display: flex; gap: 8px; align-items: center; justify-content: center; margin: 14px 0; flex-wrap: wrap; }
+#etat { position: fixed; bottom: 14px; right: 14px; max-width: 420px; background: var(--carte); border: 1px solid var(--ligne); border-radius: 10px; padding: 10px 14px; box-shadow: 0 8px 24px rgba(0,0,0,.18); display: none; z-index: 30; }
+#etat .jauge { height: 5px; background: var(--ligne); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+#etat .jauge i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+#etat.erreur { border-color: var(--danger); }
+#audio { margin-top: 8px; display: none; }
+#audio audio { width: 100%; }
+.aide { font-size: 12px; color: var(--doux); }
+kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--ligne); border-radius: 4px; padding: 0 4px; }
+@media (max-width: 640px) { #texte { font-size: 18px; padding: 12px; } .rangee > b { width: 100%; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Lecteur grec</h1>
+  <div id="recherche-zone">
+    <input id="recherche" placeholder="Chercher une œuvre de The Greek Library : auteur, titre… (ex. lysias eratosth)" autocomplete="off">
+    <div id="resultats"></div>
+  </div>
+  <button id="b-enregistrer" class="principal" disabled>Enregistrer</button>
+  <span id="modif" class="aide"></span>
+</header>
+
+<div id="barre">
+  <div class="rangee"><b>Émotion</b><span id="emotions" class="rangee"></span></div>
+  <div class="rangee"><b>Vitesse</b><span id="vitesses" class="rangee"></span></div>
+  <div class="rangee"><b>Pause après</b>
+    <button data-pause="|" title="micro-pause (touche 1)">| micro</button>
+    <button data-pause="||" title="pause (2)">‖ pause</button>
+    <button data-pause="|||" title="longue pause (3)">⦀ longue</button>
+    <button data-pause="||||" title="silence dramatique (4)">◼ silence</button>
+    <button data-pause="[souffle]" title="respiration (5)">≈ souffle</button>
+    <button id="b-effacer-pauses" title="retire les pauses après la sélection (Retour arrière)">effacer</button>
+  </div>
+  <div class="rangee"><b>Actions</b>
+    <button id="b-suggerer">✦ Suggérer avec Claude</button>
+    <button id="b-ecouter">▶ Écouter</button>
+    <button id="b-annuler" title="Cmd+Z">↶ Annuler</button>
+    <span id="portee" class="aide"></span>
+  </div>
+</div>
+
+<main>
+  <div id="accueil">
+    <p>Cherche une œuvre en haut de la page pour commencer.</p>
+    <p class="aide">Sélectionne des mots à la souris, puis choisis une émotion, une vitesse ou une pause.<br>
+    « Suggérer avec Claude » propose une annotation complète que tu peux corriger ; le texte grec n'est jamais modifié.</p>
+  </div>
+  <div id="oeuvre" style="display:none">
+    <div id="oeuvre-tete"></div>
+    <div id="texte"></div>
+    <div id="pied">
+      <button id="b-prec">← Page précédente</button>
+      <span id="page-info" class="aide"></span>
+      <button id="b-suiv">Page suivante →</button>
+    </div>
+    <p class="aide" style="text-align:center">
+      Lent = lettres espacées · vif / rapide = italique · <kbd>1</kbd>–<kbd>5</kbd> pauses · <kbd>⌫</kbd> efface les pauses · <kbd>⌘S</kbd> enregistre · <kbd>⌘Z</kbd> annule · clic sur une pause pour la retirer
+    </p>
+  </div>
+</main>
+
+<div id="etat"><div id="etat-msg"></div><div class="jauge"><i></i></div><div id="audio"></div></div>
+
+<script>
+const COULEURS = {
+  neutre: 210, narratif: 200, calme: 185, solennel: 45, sincère: 160, persuasif: 175,
+  tendre: 330, nostalgique: 300, triste: 235, troublé: 265, inquiet: 280, joueur: 95,
+  ironique: 75, méprisant: 60, ferme: 25, amer: 15, indigné: 5, colère: 355,
+  menaçant: 340, suppliant: 250, triomphant: 40,
+};
+const SATURATION = { neutre: 0, narratif: 15, calme: 35 };
+const sombre = () => matchMedia("(prefers-color-scheme: dark)").matches;
+function fondEmotion(e) {
+  const s = SATURATION[e] ?? 70;
+  return sombre() ? `hsla(${COULEURS[e]}, ${s}%, 45%, .32)` : `hsla(${COULEURS[e]}, ${s}%, 72%, .38)`;
+}
+function encreEmotion(e) {
+  const s = SATURATION[e] ?? 60;
+  return sombre() ? `hsl(${COULEURS[e]}, ${s}%, 72%)` : `hsl(${COULEURS[e]}, ${s}%, 32%)`;
+}
+const SYMBOLE = { "|": "|", "||": "‖", "|||": "⦀", "||||": "◼", "[souffle]": "≈" };
+const MOTS_PAR_PAGE = 450;
+
+let O = null;            // œuvre ouverte
+let pages = [];          // [debut, fin) en indices d'éléments, coupés aux sections
+let page = 0;
+let sel = null;          // [a, b] indices inclus
+let historique = [];
+let modifie = false;
+let config = { emotions: Object.keys(COULEURS), vitesses: ["lent", "posé", "normal", "vif", "rapide"] };
+
+const $ = (s) => document.querySelector(s);
+
+async function api(url, options) {
+  const r = await fetch(url, options);
+  if (!r.ok) {
+    let msg = r.statusText;
+    try { msg = (await r.json()).detail || msg; } catch {}
+    throw new Error(msg);
+  }
+  return r.json();
+}
+const poster = (url, corps) => api(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps) });
+
+// ---------- recherche ----------
+let minuterie;
+$("#recherche").addEventListener("input", () => {
+  clearTimeout(minuterie);
+  minuterie = setTimeout(async () => {
+    const q = $("#recherche").value.trim();
+    const zone = $("#resultats");
+    if (!q) { zone.style.display = "none"; return; }
+    const res = await api(`/api/oeuvres?q=${encodeURIComponent(q)}`);
+    zone.innerHTML = res.length ? "" : "<div><small>Aucune œuvre trouvée</small></div>";
+    for (const r of res) {
+      const d = document.createElement("div");
+      d.innerHTML = `${r.auteur} — <i>${r.titre}</i> <small>${Math.round(r.taille / 1000)} Ko</small> ${r.annotee ? '<span class="annotee">✓ annotée</span>' : ""}`;
+      d.onclick = () => { zone.style.display = "none"; ouvrir(r.id); };
+      zone.appendChild(d);
+    }
+    zone.style.display = "block";
+  }, 250);
+});
+document.addEventListener("click", (e) => { if (!e.target.closest("#recherche-zone")) $("#resultats").style.display = "none"; });
+
+// ---------- ouverture ----------
+async function ouvrir(id) {
+  if (modifie && !confirm("Des modifications ne sont pas enregistrées. Ouvrir quand même ?")) return;
+  montrerEtat("Chargement de l'œuvre…");
+  try {
+    O = await api(`/api/oeuvre/${id}`);
+  } catch (err) { montrerEtat(err.message, true); return; }
+  cacherEtat();
+  historique = []; sel = null; page = 0; modifie = false; majModif();
+  pages = [];
+  let debut = 0, n = 0;
+  O.elements.forEach((e, i) => {
+    if ("mot" in e) n++;
+    const suivant = O.elements[i + 1];
+    if (n >= MOTS_PAR_PAGE && (!suivant || suivant.section !== e.section)) { pages.push([debut, i + 1]); debut = i + 1; n = 0; }
+  });
+  if (debut < O.elements.length) pages.push([debut, O.elements.length]);
+  const nbMots = O.elements.filter((e) => "mot" in e).length;
+  $("#oeuvre-tete").innerHTML = `<p>${O.auteur}</p><h2>${O.titreGrec || O.titre}</h2>
+    <p>${O.titre} · ${nbMots.toLocaleString("fr")} mots · ${O.licence || ""}${O.sectionsReprises ? ` · annotation enregistrée reprise` : ""}</p>`;
+  $("#accueil").style.display = "none";
+  $("#oeuvre").style.display = "block";
+  $("#barre").style.display = "block";
+  $("#b-enregistrer").disabled = false;
+  dessiner();
+}
+
+// ---------- affichage ----------
+function dessiner() {
+  const [a, b] = pages[page];
+  const t = $("#texte");
+  const frag = document.createDocumentFragment();
+  let section = null, prec = null;
+  for (let i = a; i < b; i++) {
+    const e = O.elements[i];
+    if (e.section !== section) {
+      section = e.section;
+      const s = document.createElement("span"); s.className = "sec"; s.textContent = "§" + section; frag.appendChild(s);
+    }
+    if ("intertitre" in e) {
+      const s = document.createElement("span"); s.className = "inter"; s.textContent = e.intertitre; frag.appendChild(s);
+      continue;
+    }
+    if (!prec || prec.emotion !== e.emotion || prec.vitesse !== e.vitesse) {
+      const et = document.createElement("span"); et.className = "etiq";
+      et.textContent = e.emotion + (e.vitesse !== "normal" ? " · " + e.vitesse : "");
+      et.style.background = fondEmotion(e.emotion); et.style.color = encreEmotion(e.emotion);
+      frag.appendChild(et);
+    }
+    const m = document.createElement("span");
+    m.className = `mot v-${e.vitesse}` + (sel && i >= sel[0] && i <= sel[1] ? " sel" : "");
+    m.dataset.i = i; m.textContent = e.mot; m.style.background = fondEmotion(e.emotion);
+    frag.appendChild(m);
+    for (const p of e.apres) {
+      const s = document.createElement("span"); s.className = "pause" + (p === "||||" ? " drame" : "");
+      s.textContent = SYMBOLE[p]; s.title = `${p} — clic pour retirer`; s.dataset.i = i; s.dataset.p = p;
+      frag.appendChild(s);
+    }
+    frag.appendChild(document.createTextNode(" "));
+    prec = e;
+  }
+  t.replaceChildren(frag);
+  $("#page-info").textContent = `page ${page + 1} / ${pages.length} (§${O.elements[a].section} – §${O.elements[b - 1].section})`;
+  $("#b-prec").disabled = page === 0;
+  $("#b-suiv").disabled = page === pages.length - 1;
+  majPortee();
+}
+
+function majPortee() {
+  const [a, b] = portee();
+  const n = O.elements.slice(a, b).filter((e) => "mot" in e).length;
+  $("#portee").textContent = sel ? `sélection : ${n} mot(s)` : `page entière : ${n} mots`;
+}
+
+// ---------- sélection ----------
+function indiceDe(noeud) {
+  const el = noeud && (noeud.nodeType === 1 ? noeud : noeud.parentElement);
+  const mot = el && el.closest(".mot");
+  return mot ? +mot.dataset.i : null;
+}
+$("#texte").addEventListener("mouseup", (ev) => {
+  if (ev.target.classList.contains("pause")) return;
+  const s = getSelection();
+  let a = indiceDe(s.anchorNode), b = indiceDe(s.focusNode);
+  if (a === null && b === null) { a = b = indiceDe(ev.target); }
+  if (a === null || b === null) { a = b = a ?? b; }
+  if (a === null) { sel = null; } else { sel = [Math.min(a, b), Math.max(a, b)]; }
+  s.removeAllRanges();
+  dessiner();
+});
+$("#texte").addEventListener("click", (ev) => {
+  if (!ev.target.classList.contains("pause")) return;
+  const i = +ev.target.dataset.i, p = ev.target.dataset.p;
+  modifier([i], (e) => { e.apres = e.apres.filter((x) => x !== p); });
+});
+
+function portee() {
+  if (sel) return [sel[0], sel[1] + 1];
+  return pages[page];
+}
+
+// ---------- modifications ----------
+function modifier(indices, fn) {
+  const avant = indices.map((i) => [i, JSON.stringify(O.elements[i])]);
+  for (const i of indices) if ("mot" in O.elements[i]) fn(O.elements[i]);
+  historique.push(avant);
+  if (historique.length > 200) historique.shift();
+  modifie = true; majModif(); dessiner();
+}
+function plage() { const [a, b] = portee(); return Array.from({ length: b - a }, (_, k) => a + k); }
+function dernierMot() {
+  const [a, b] = portee();
+  for (let i = b - 1; i >= a; i--) if ("mot" in O.elements[i]) return i;
+  return null;
+}
+function annuler() {
+  const avant = historique.pop();
+  if (!avant) return;
+  for (const [i, json] of avant) O.elements[i] = JSON.parse(json);
+  modifie = true; majModif(); dessiner();
+}
+function majModif() { $("#modif").textContent = modifie ? "● non enregistré" : ""; }
+
+function poserPause(p) {
+  if (!sel) { montrerEtat("Sélectionne d'abord le mot après lequel placer la pause.", true, 3000); return; }
+  const i = dernierMot();
+  if (i === null) return;
+  modifier([i], (e) => { if (!e.apres.includes(p)) e.apres.push(p); });
+}
+
+function construireBarre() {
+  for (const em of config.emotions) {
+    const b = document.createElement("button");
+    b.className = "puce"; b.textContent = em;
+    b.style.background = fondEmotion(em); b.style.color = encreEmotion(em);
+    b.onclick = () => modifier(plage(), (e) => { e.emotion = em; });
+    $("#emotions").appendChild(b);
+  }
+  for (const v of config.vitesses) {
+    const b = document.createElement("button");
+    b.textContent = v; b.className = `v-${v}`;
+    b.onclick = () => modifier(plage(), (e) => { e.vitesse = v; });
+    $("#vitesses").appendChild(b);
+  }
+  document.querySelectorAll("[data-pause]").forEach((b) => b.onclick = () => poserPause(b.dataset.pause));
+}
+$("#b-effacer-pauses").onclick = () => { const i = dernierMot(); if (i !== null) modifier([i], (e) => { e.apres = []; }); };
+$("#b-annuler").onclick = annuler;
+$("#b-prec").onclick = () => { page--; sel = null; dessiner(); scrollTo(0, 0); };
+$("#b-suiv").onclick = () => { page++; sel = null; dessiner(); scrollTo(0, 0); };
+
+document.addEventListener("keydown", (ev) => {
+  if (!O || ev.target.tagName === "INPUT") return;
+  const cmd = ev.metaKey || ev.ctrlKey;
+  if (cmd && ev.key === "s") { ev.preventDefault(); enregistrer(); }
+  else if (cmd && ev.key === "z") { ev.preventDefault(); annuler(); }
+  else if (!cmd && "12345".includes(ev.key) && ev.key.length === 1) poserPause(["|", "||", "|||", "||||", "[souffle]"][+ev.key - 1]);
+  else if (ev.key === "Backspace" && sel) { ev.preventDefault(); $("#b-effacer-pauses").click(); }
+  else if (ev.key === "Escape") { sel = null; dessiner(); }
+});
+addEventListener("beforeunload", (ev) => { if (modifie) { ev.preventDefault(); ev.returnValue = ""; } });
+
+// ---------- enregistrement ----------
+async function enregistrer() {
+  if (!O) return;
+  try {
+    const r = await poster(`/api/oeuvre/${O.id}/enregistrer`, { elements: O.elements });
+    modifie = false; majModif();
+    montrerEtat(`Enregistré dans ${r.fichier}`, false, 2500);
+  } catch (err) { montrerEtat(err.message, true); }
+}
+$("#b-enregistrer").onclick = enregistrer;
+
+// ---------- travaux longs ----------
+async function suivre(tid, surFin) {
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 2000));
+    let t;
+    try { t = await api(`/api/travail/${tid}`); } catch (err) { montrerEtat(err.message, true); return; }
+    const mn = Math.floor(t.duree / 60), s = t.duree % 60;
+    montrerEtat(`${t.message} (${mn ? mn + " min " : ""}${s} s)`, t.etat === "erreur", null, t.fraction);
+    if (t.etat === "erreur") return;
+    if (t.etat === "fini") { surFin(t); return; }
+  }
+}
+
+$("#b-suggerer").onclick = async () => {
+  const [a, b] = portee();
+  const n = O.elements.slice(a, b).filter((e) => "mot" in e).length;
+  const deja = O.elements.slice(a, b).some((e) => "mot" in e && (e.emotion !== "neutre" || e.apres.length));
+  if (deja && !confirm(`Remplacer l'annotation actuelle de ces ${n} mots par les suggestions de Claude ?`)) return;
+  try {
+    const { travail } = await poster(`/api/oeuvre/${O.id}/suggerer`, { elements: O.elements, debut: a, fin: b });
+    $("#b-suggerer").disabled = true;
+    await suivre(travail, (t) => {
+      historique.push(Array.from({ length: b - a }, (_, k) => [a + k, JSON.stringify(O.elements[a + k])]));
+      for (let i = a; i < b; i++) O.elements[i] = t.elements[i];
+      modifie = true; majModif(); dessiner();
+      montrerEtat("Suggestions appliquées : relis et corrige, puis enregistre.", false, 5000);
+    });
+  } catch (err) { montrerEtat(err.message, true); }
+  $("#b-suggerer").disabled = false;
+};
+
+$("#b-ecouter").onclick = async () => {
+  const [a, b] = portee();
+  const caracteres = O.elements.slice(a, b).reduce((s, e) => s + (e.mot ? e.mot.length + 1 : 0), 0);
+  // Chatterbox PyTorch sur puce Apple : environ 8 s de calcul par seconde lue, reprises comprises
+  const minutes = Math.max(1, Math.round(caracteres / 14.5 * 8 / 60));
+  if (minutes > 10 && !confirm(`La lecture de ce passage demandera environ ${minutes} minutes de calcul. Continuer ?`)) return;
+  try {
+    const { travail } = await poster(`/api/oeuvre/${O.id}/lire`, { elements: O.elements, debut: a, fin: b });
+    $("#b-ecouter").disabled = true;
+    await suivre(travail, (t) => {
+      montrerEtat("Lecture prête", false, null, 1);
+      const zone = $("#audio");
+      zone.innerHTML = `<audio controls autoplay src="${t.wav}"></audio>
+        <div class="aide">Télécharger : ${t.m4a ? `<a href="${t.m4a}" download>m4a</a> · ` : ""}<a href="${t.wav}" download>wav</a>
+        · <a href="#" onclick="cacherEtat();return false">fermer</a></div>`;
+      zone.style.display = "block";
+    });
+  } catch (err) { montrerEtat(err.message, true); }
+  $("#b-ecouter").disabled = false;
+};
+
+// ---------- bandeau d'état ----------
+let minuterieEtat;
+function montrerEtat(msg, erreur = false, duree = null, fraction = null) {
+  const e = $("#etat");
+  e.style.display = "block";
+  e.classList.toggle("erreur", erreur);
+  $("#etat-msg").textContent = msg;
+  e.querySelector(".jauge").style.display = fraction == null ? "none" : "block";
+  if (fraction != null) e.querySelector(".jauge i").style.width = `${Math.round(fraction * 100)}%`;
+  if (!erreur && duree == null) $("#audio").style.display = $("#audio").innerHTML ? $("#audio").style.display : "none";
+  clearTimeout(minuterieEtat);
+  if (duree) minuterieEtat = setTimeout(cacherEtat, duree);
+  if (erreur) minuterieEtat = setTimeout(cacherEtat, 12000);
+}
+function cacherEtat() { $("#etat").style.display = "none"; $("#audio").innerHTML = ""; $("#audio").style.display = "none"; }
+
+api("/api/config").then((c) => { config = c; construireBarre(); }).catch(() => construireBarre());
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# Moteur MLX facultatif (puces Apple), dans un environnement séparé — Python 3.11
+mlx-audio==0.6.1
+librosa==0.11.0
+soundfile>=0.12
+scipy>=1.11
