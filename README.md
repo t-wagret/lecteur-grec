@@ -84,7 +84,7 @@ Exemple, tiré de Lysias 1, §11–12 :
 
 Sur un MacBook Air M5, le moteur PyTorch demande environ **8 secondes de calcul par seconde lue**, régénérations comprises. Il faut donc compter à peu près 2 h pour les 18 minutes de Lysias 1.
 
-Le moteur **MLX** (puces Apple) est environ 8 fois plus rapide. Mais dans sa version 8 bits, il rate beaucoup plus souvent les morceaux courts. Il reste donc **facultatif**, dans un environnement à part :
+Le moteur **MLX** (puces Apple, mlx-audio 0.6.1) est environ 8 fois plus rapide. Mais en grec, il ne s'arrête souvent pas en fin de phrase : mesuré sur 12 morceaux courts, il en rate 11, en version 8 bits comme en version fp16 non compressée. Il reste donc **facultatif**, dans un environnement à part :
 
 ```bash
 uv venv --python 3.11 .venv-mlx
