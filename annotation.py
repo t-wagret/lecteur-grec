@@ -8,6 +8,7 @@ Le texte grec est recopié tel quel, avec des marques entre ses mots :
   ||||                 silence dramatique (moments forts, à utiliser rarement)
   [souffle]            temps de respiration (silence plus long qu'une pause)
   [[Νόμος]]            intertitre non lu (lecture d'une loi, témoins) : silence
+  [@kostas]            change de voix à partir de là (voix/cc0/kostas.wav) ; [@] revient à la voix principale
   §12                  repère de section, ignoré à la lecture
   # ...                ligne de commentaire
 """
@@ -47,14 +48,15 @@ INTERTITRE_MS = 2000  # loi ou témoins lus par le greffier
 LOCUTEUR_MS = 700  # changement de locuteur au théâtre
 INTERTITRES_LECTURE = {"Νόμος", "Νόμοι", "Μάρτυρες", "Μαρτυρία", "Μαρτυρίαι", "Ψήφισμα", "Ὅρκος"}
 
-JETONS = re.compile(r"\{[^}]*\}|\[\[[^\]]*\]\]|\[souffle\]|\|{1,4}|§[\w.–-]+")
+JETONS = re.compile(r"\{[^}]*\}|\[\[[^\]]*\]\]|\[@[\w-]*\]|\[souffle\]|\|{1,4}|§[\w.–-]+")
 MARQUES_PAUSE = ["|", "||", "|||", "||||", "[souffle]"]
 
 
 def evenements(chemin):
     """Découpe une annotation en événements :
-    ("texte", texte, émotion, vitesse, section), ("pause", ms), ("souffle",)."""
-    emotion, vitesse, section = "neutre", "normal", ""
+    ("texte", texte, émotion, vitesse, section, voix), ("pause", ms), ("souffle",).
+    voix vaut None pour la voix principale."""
+    emotion, vitesse, section, voix = "neutre", "normal", "", None
     lignes = [l for l in open(chemin, encoding="utf-8") if not l.lstrip().startswith("#")]
     source = " ".join(lignes)
     sortie, pos = [], 0
@@ -62,7 +64,7 @@ def evenements(chemin):
     def texte(fragment):
         fragment = " ".join(fragment.split())
         if fragment:
-            sortie.append(("texte", fragment, emotion, vitesse, section))
+            sortie.append(("texte", fragment, emotion, vitesse, section, voix))
 
     for m in JETONS.finditer(source):
         texte(source[pos:m.start()])
@@ -70,6 +72,8 @@ def evenements(chemin):
         jeton = m.group()
         if jeton.startswith("§"):
             section = jeton
+        elif jeton.startswith("[@"):
+            voix = jeton[2:-1] or None
         elif jeton.startswith("{"):
             morceaux = [p.strip() for p in jeton[1:-1].split(",")]
             emotion = morceaux[0]
@@ -94,18 +98,22 @@ def texte_brut(chemin):
 # ---------- modèle mot à mot, utilisé par l'éditeur ----------
 # Une liste d'éléments :
 #   {"mot": "ἐγὼ", "section": "5", "emotion": "sincère", "vitesse": "normal", "apres": ["||"]}
+#   (plus "voix": "kostas" quand le mot n'est pas dit par la voix principale)
 #   {"intertitre": "Νόμος", "section": "29"}
 
 
 def modele_depuis_annotation(texte):
     """Annotation (texte à marques) -> modèle mot à mot."""
     source = " ".join(l for l in texte.splitlines() if not l.lstrip().startswith("#"))
-    emotion, vitesse, section = "neutre", "normal", ""
+    emotion, vitesse, section, voix = "neutre", "normal", "", None
     elements, pos = [], 0
 
     def mots(fragment):
         for m in fragment.split():
-            elements.append({"mot": m, "section": section, "emotion": emotion, "vitesse": vitesse, "apres": []})
+            e = {"mot": m, "section": section, "emotion": emotion, "vitesse": vitesse, "apres": []}
+            if voix:
+                e["voix"] = voix
+            elements.append(e)
 
     def dernier_mot():
         return next((e for e in reversed(elements) if "mot" in e), None)
@@ -116,6 +124,8 @@ def modele_depuis_annotation(texte):
         jeton = m.group()
         if jeton.startswith("§"):
             section = jeton[1:]
+        elif jeton.startswith("[@"):
+            voix = jeton[2:-1] or None
         elif jeton.startswith("{"):
             morceaux = [p.strip() for p in jeton[1:-1].split(",")]
             emotion = morceaux[0] if morceaux[0] in EMOTIONS else "neutre"
@@ -131,7 +141,7 @@ def modele_depuis_annotation(texte):
 def serialiser(elements, entete=""):
     """Modèle mot à mot -> annotation (texte à marques), une ligne par section."""
     lignes = [entete.rstrip()] if entete else []
-    courante, emotion, vitesse, section = [], None, None, None
+    courante, emotion, vitesse, section, voix = [], None, None, None, None
     for e in elements:
         if e["section"] != section:
             if courante:
@@ -141,6 +151,9 @@ def serialiser(elements, entete=""):
         if "intertitre" in e:
             courante.append(f"[[{e['intertitre']}]]")
             continue
+        if e.get("voix") != voix:
+            voix = e.get("voix")
+            courante.append(f"[@{voix or ''}]")
         if (e["emotion"], e["vitesse"]) != (emotion, vitesse):
             emotion, vitesse = e["emotion"], e["vitesse"]
             courante.append(f"{{{emotion}}}" if vitesse == "normal" else f"{{{emotion}, {vitesse}}}")

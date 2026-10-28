@@ -90,8 +90,8 @@ def fusionner(evts):
     sortie = []
     for e in evts:
         prec = sortie[-1] if sortie else None
-        if e[0] == "texte" and prec and prec[0] == "texte" and prec[2:4] == e[2:4]:
-            sortie[-1] = ("texte", f"{prec[1]} {e[1]}", prec[2], prec[3], prec[4])
+        if e[0] == "texte" and prec and prec[0] == "texte" and prec[2:4] == e[2:4] and prec[5] == e[5]:
+            sortie[-1] = ("texte", f"{prec[1]} {e[1]}", prec[2], prec[3], prec[4], prec[5])
         else:
             sortie.append(e)
     return sortie
@@ -117,7 +117,8 @@ def recoller_courts(evts):
             while 0 <= j < len(evts) and evts[j][0] == "pause":
                 pauses += evts[j][1]
                 j += sens
-            if 0 <= j < len(evts) and evts[j][0] == "texte" and pauses <= 600:
+            # jamais à travers un changement de voix : chaque locuteur garde ses répliques
+            if 0 <= j < len(evts) and evts[j][0] == "texte" and evts[j][5] == e[5] and pauses <= 600:
                 choix.append((pauses, sens, j))
         if not choix:
             i += 1
@@ -126,7 +127,7 @@ def recoller_courts(evts):
         a, b = (j, i) if sens == -1 else (i, j)
         long_ = evts[a] if len(evts[a][1]) >= len(evts[b][1]) else evts[b]
         texte_a = evts[a][1] if evts[a][1][-1] in ",.;·" else evts[a][1] + ","
-        evts[a:b + 1] = [("texte", f"{texte_a} {evts[b][1]}", long_[2], long_[3], evts[a][4])]
+        evts[a:b + 1] = [("texte", f"{texte_a} {evts[b][1]}", long_[2], long_[3], evts[a][4], e[5])]
         i = a
     return evts
 
@@ -152,11 +153,23 @@ def generer(moteur, texte, expression, cfg):
     return meilleur, essais_max
 
 
+def chemin_voix(voix):
+    """Un nom de voix (« kostas ») ou un chemin de fichier .wav -> chemin du fichier."""
+    if voix.endswith(".wav") or "/" in voix:
+        return voix
+    for dossier in ("voix/cc0", "voix"):
+        chemin = Path(__file__).parent / dossier / f"{voix}.wav"
+        if chemin.exists():
+            return str(chemin)
+    raise SystemExit(f"Voix introuvable : {voix} (voix/cc0/{voix}.wav)")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("annotation")
     parser.add_argument("-o", "--sortie", default="lecture.wav")
-    parser.add_argument("--voix", default=str(Path(__file__).parent / "voix" / "homme2_propre.wav"))
+    parser.add_argument("--voix", default=str(Path(__file__).parent / "voix" / "homme2_propre.wav"),
+                        help="voix principale : un fichier .wav ou un nom de voix/cc0 (ex. spyros)")
     parser.add_argument("--de", type=int, help="première section à lire")
     parser.add_argument("--a", type=int, help="dernière section à lire")
     parser.add_argument("--moteur", choices=MOTEURS, default=os.environ.get("LECTEUR_MOTEUR", "torch"))
@@ -171,7 +184,7 @@ def main():
     evts = recoller_courts(fusionner(evts))
 
     print(f"Chargement du modèle ({MOTEURS[args.moteur].nom})...", flush=True)
-    moteur = MOTEURS[args.moteur](args.voix)
+    moteur = MOTEURS[args.moteur](chemin_voix(args.voix))
     sr = moteur.sr
 
     morceaux = []
@@ -184,13 +197,15 @@ def main():
         elif e[0] == "souffle":
             morceaux.append(np.zeros(int(sr * SOUFFLE_MS / 1000)))
         else:
-            _, texte, emotion, vitesse, section = e
+            _, texte, emotion, vitesse, section, voix = e
+            moteur.choisir_voix(chemin_voix(voix or args.voix))
             fait += 1
             expression, cfg = EMOTIONS[emotion]
             for i, bout in enumerate(couper(monotonique(texte))):
                 if i:
                     morceaux.append(np.zeros(int(sr * PAUSE_COUPURE_MS / 1000)))
-                print(f"[{fait}/{nb_textes}] {section} {emotion}/{vitesse} : {bout[:45]}...", flush=True)
+                qui = f" [{voix}]" if voix else ""
+                print(f"[{fait}/{nb_textes}] {section}{qui} {emotion}/{vitesse} : {bout[:45]}...", flush=True)
                 y, essais = generer(moteur, bout, expression, cfg)
                 rates += essais - 1
                 morceaux.append(fondus(tempo(y, VITESSES[vitesse]), sr))

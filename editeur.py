@@ -72,17 +72,41 @@ def _fusionner_sauvegarde(source, chemin):
         # même texte du début à la fin (même si les mots sont découpés autrement) :
         # on aligne caractère par caractère, quelles que soient les références de section
         debuts, fins, pos = {}, {}, 0
-        for a in mots_sauves:
-            debuts[pos] = a
+        for k, a in enumerate(mots_sauves):
+            debuts[pos] = k
             pos += len(a["mot"])
-            fins[pos] = a
-        pos, courant = 0, mots_sauves[0] if mots_sauves else None
+            fins[pos] = k
+
+        def copier(e, a, apres):
+            e.update(emotion=a["emotion"], vitesse=a["vitesse"], apres=list(apres))
+            e.pop("voix", None)
+            if a.get("voix"):
+                e["voix"] = a["voix"]
+
+        # groupes de mots source couverts par un même mot enregistré
+        groupes, pos, k = [], 0, 0
         for e in mots_source:
-            courant = debuts.get(pos, courant)
+            if pos in debuts:
+                k = debuts[pos]
+                groupes.append((k, []))
+            groupes[-1][1].append(e)
             pos += len(e["mot"])
-            fin = fins.get(pos)
-            e.update(emotion=courant["emotion"], vitesse=courant["vitesse"],
-                     apres=list(fin["apres"]) if fin else [])
+            if pos in fins and len(groupes[-1][1]) == 1:
+                # mot source plus long que le mot enregistré (« πέντε,ὡς ») : pauses du dernier morceau
+                groupes[-1] = (k, groupes[-1][1], fins[pos])
+        for groupe in groupes:
+            k, mots = groupe[0], groupe[1]
+            a = mots_sauves[k]
+            if len(mots) == 1:
+                fin = mots_sauves[groupe[2]] if len(groupe) > 2 else a
+                copier(mots[0], a, fin["apres"])
+                continue
+            # un mot enregistré qui couvrait plusieurs mots (« ἔσονται;ἔγωγε. », répliques collées) :
+            # sa pause va à la fin de phrase, et la suite prend le style du mot enregistré suivant
+            coupe = next((i for i, m in enumerate(mots[:-1]) if m["mot"][-1] in ".;·;!"), len(mots) - 1)
+            suivant = mots_sauves[k + 1] if k + 1 < len(mots_sauves) else a
+            for i, m in enumerate(mots):
+                copier(m, a if i <= coupe else suivant, a["apres"] if i == coupe else [])
         return source, len(_par_section(source))
     sauve = _par_section(tout)
     repris = 0
@@ -93,6 +117,8 @@ def _fusionner_sauvegarde(source, chemin):
         if anciens and [e["mot"] for e in mots] == [e["mot"] for e in anciens_mots]:
             for e, a in zip(mots, anciens_mots):
                 e.update(emotion=a["emotion"], vitesse=a["vitesse"], apres=a["apres"])
+                if a.get("voix"):
+                    e["voix"] = a["voix"]
             repris += 1
     return source, repris
 

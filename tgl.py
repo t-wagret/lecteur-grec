@@ -63,6 +63,9 @@ def oeuvre(identifiant):
         chemin = chemin + [section.get("label") or ""]
         for bloc in section.get("blocks", []):
             texte = " ".join((bloc.get("text") or "").split())
+            # « ἔσονται;ἔγωγε.ἴθι » : espace manquante après une fin de phrase (répliques collées),
+            # ajoutée pour que chaque réplique soit un mot à part ; les caractères ne changent pas
+            texte = re.sub(r"([.;·;!])(?=[^\W\d_])", r"\1 ", texte)
             if not texte or bloc.get("type") == "note":
                 continue
             if bloc.get("type") == "speaker":  # prendra la référence du vers qui suit
