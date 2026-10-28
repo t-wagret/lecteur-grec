@@ -112,7 +112,7 @@ Le modèle MLX se choisit avec `LECTEUR_MODELE_MLX` (par défaut `mlx-community/
 
 ## Licences et crédits
 
-- **Code** : MIT (voir `LICENSE`).
+- **Code** : MIT (voir `LICENSE`). Cette licence couvre uniquement le code ; les textes grecs, les annotations et la voix de référence ont leurs propres licences, ci-dessous.
 - **Textes et annotations** : The Greek Library / Perseus Digital Library, CC BY-SA 4.0 (voir `textes/LICENCE.md` et `annotations/LICENCE.md`).
 - **Voix de référence** : Google FLEURS, CC BY 4.0 (voir `voix/LICENCE.md`). Toute publication des audios doit mentionner : « Voix de référence : Google FLEURS (CC BY 4.0) ».
 - **Modèle de synthèse** : [Chatterbox](https://github.com/resemble-ai/chatterbox) de Resemble AI (MIT). Chaque audio produit contient un filigrane inaudible (PerthNet), qui signale une voix de synthèse.
