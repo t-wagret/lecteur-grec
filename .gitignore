@@ -12,6 +12,7 @@ travaux/
 *.m4a
 !voix/*.wav
 !voix/cc0/*.wav
+!voix/propre/*.wav
 
 # données téléchargées (FLEURS, etc.)
 fleurs_dl/

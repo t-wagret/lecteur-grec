@@ -8,6 +8,7 @@ Chaque segment est généré, débruité, débarrassé de ses trous parasites, p
 s'il est anormalement long ou court pour son texte (raté du modèle), il est régénéré.
 """
 import argparse
+import hashlib
 import os
 import re
 import time
@@ -157,7 +158,7 @@ def chemin_voix(voix):
     """Un nom de voix (« kostas ») ou un chemin de fichier .wav -> chemin du fichier."""
     if voix.endswith(".wav") or "/" in voix:
         return voix
-    for dossier in ("voix/cc0", "voix"):
+    for dossier in ("voix/propre", "voix/cc0", "voix"):  # voix/propre : versions débruitées
         chemin = Path(__file__).parent / dossier / f"{voix}.wav"
         if chemin.exists():
             return str(chemin)
@@ -173,6 +174,8 @@ def main():
     parser.add_argument("--de", type=int, help="première section à lire")
     parser.add_argument("--a", type=int, help="dernière section à lire")
     parser.add_argument("--moteur", choices=MOTEURS, default=os.environ.get("LECTEUR_MOTEUR", "torch"))
+    parser.add_argument("--cache", help="dossier où garder chaque morceau généré, pour reprendre un long "
+                                        "calcul interrompu (par défaut : <sortie>.morceaux)")
     args = parser.parse_args()
 
     evts, section = [], ""
@@ -187,6 +190,8 @@ def main():
     moteur = MOTEURS[args.moteur](chemin_voix(args.voix))
     sr = moteur.sr
 
+    cache = Path(args.cache or f"{args.sortie}.morceaux")
+    cache.mkdir(parents=True, exist_ok=True)
     morceaux = []
     nb_textes = sum(1 for e in evts if e[0] == "texte")
     fait = rates = 0
@@ -206,9 +211,17 @@ def main():
                     morceaux.append(np.zeros(int(sr * PAUSE_COUPURE_MS / 1000)))
                 qui = f" [{voix}]" if voix else ""
                 print(f"[{fait}/{nb_textes}] {section}{qui} {emotion}/{vitesse} : {bout[:45]}...", flush=True)
+                cle = hashlib.sha1(f"{moteur.nom}|{chemin_voix(voix or args.voix)}|{bout}|{expression}|{cfg}|"
+                                   f"{vitesse}".encode()).hexdigest()[:16]
+                fichier = cache / f"{cle}.npy"
+                if fichier.exists():  # déjà fait lors d'un calcul précédent
+                    morceaux.append(np.load(fichier))
+                    continue
                 y, essais = generer(moteur, bout, expression, cfg)
                 rates += essais - 1
-                morceaux.append(fondus(tempo(y, VITESSES[vitesse]), sr))
+                y = fondus(tempo(y, VITESSES[vitesse]), sr).astype(np.float32)
+                np.save(fichier, y)
+                morceaux.append(y)
 
     audio = np.concatenate(morceaux)
     audio = (audio / max(np.max(np.abs(audio)), 1e-6) * 0.89).astype(np.float32)  # crête à -1 dBFS

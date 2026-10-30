@@ -22,3 +22,6 @@ le détail des enregistrements sources est dans `cc0/voices.md`. Merci de ne pas
 identifier les contributeurs. Le modèle Pocket TTS Greek lui-même est sous **CC BY 4.0** :
 toute publication d'audios produits avec lui doit mentionner
 « Pocket TTS Greek, Myned AI (CC BY 4.0) ».
+
+`propre/spyros.wav` et `propre/kostas.wav` sont des versions débruitées des voix CC0 du même nom
+(script `nettoyage.py`, fonction `debruiter`) ; `lire_discours.py` les préfère quand elles existent.
