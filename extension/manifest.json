@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Lecteur grec pour The Greek Library",
+  "version": "0.1.0",
+  "description": "Lit à voix haute les textes grecs de The Greek Library, avec une voix grecque produite sur ton ordinateur.",
+  "host_permissions": ["http://127.0.0.1:8766/*"],
+  "background": { "service_worker": "fond.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://thegreeklibrary.pages.lisn.upsaclay.fr/works/*"],
+      "js": ["contenu.js"],
+      "css": ["contenu.css"]
+    }
+  ]
+}

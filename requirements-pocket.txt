@@ -1,0 +1,8 @@
+# Environnement .venv-pocket : Pocket TTS Greek, utilisé par serveur_lecture.py (extension Chrome)
+pocket-tts>=4.0
+fastapi
+uvicorn
+soundfile
+librosa
+scipy
+numpy

@@ -56,6 +56,31 @@ Le lecteur traite chaque morceau de texte dans l'ordre suivant :
 
 Les morceaux trop courts sont d'abord réunis à leurs voisins, car le modèle les rate souvent.
 
+## L'extension Chrome pour The Greek Library
+
+L'extension ajoute un bouton **▶** devant chaque paragraphe des textes de
+[The Greek Library](https://thegreeklibrary.pages.lisn.upsaclay.fr/), ainsi qu'une petite barre de lecture
+(pause, arrêt, choix de la voix : spyros, kostas, athina, katerina). Les mots lus sont surlignés.
+Si du texte grec est sélectionné, le bouton « Lire la sélection » ne lit que ce passage.
+
+La voix est produite sur ton ordinateur par **Pocket TTS Greek**. Ce moteur est assez rapide pour lire à la
+demande, mais il ne règle pas les émotions : pour une lecture annotée, il faut passer par l'éditeur et Chatterbox.
+
+**Installation, une seule fois :**
+
+```bash
+uv venv --python 3.11 .venv-pocket
+uv pip install --python .venv-pocket/bin/python -r requirements-pocket.txt
+```
+
+Ensuite, dans Chrome :
+1. ouvrir `chrome://extensions` ;
+2. activer le **mode développeur**, en haut à droite ;
+3. cliquer sur **Charger l'extension non empaquetée** et choisir le dossier `extension/`.
+
+**À chaque utilisation :** double-cliquer sur `Lancer le lecteur.command` et laisser la fenêtre ouverte
+pendant la lecture. Au premier lancement, le modèle (environ 800 Mo) se télécharge.
+
 ## Format d'annotation
 
 Le texte grec est recopié tel quel, avec des marques placées entre les mots :
@@ -108,6 +133,7 @@ Le modèle MLX se choisit avec `LECTEUR_MODELE_MLX` (par défaut `mlx-community/
 | `tgl.py` | lecture du catalogue et des œuvres de The Greek Library |
 | `verifier.py` | contrôle d'une annotation par rapport au texte source |
 | `parler_grec.py` | lecture rapide d'une phrase grecque |
+| `serveur_lecture.py`, `extension/`, `Lancer le lecteur.command` | extension Chrome pour lire The Greek Library |
 | `classer_voix.py`, `banc_rates.py` | choix de la voix de référence, mesure des ratés |
 
 ## Licences et crédits
