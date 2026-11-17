@@ -1,39 +1,72 @@
-// Ajoute aux pages de texte de The Greek Library un bouton ▶ devant chaque paragraphe et une petite
-// barre de lecture. Le texte est envoyé morceau par morceau au lecteur local (serveur_lecture.py) ;
-// le morceau suivant est préparé pendant que le précédent est lu.
+// Ajoute aux pages de texte de The Greek Library une petite barre de lecture et, dans la marge,
+// un bouton ▶ par paragraphe et un trait qui suit le passage lu. Le texte est envoyé morceau par
+// morceau au lecteur local (serveur_lecture.py) ; le morceau suivant est préparé pendant que le
+// précédent est lu.
 (() => {
   const texteGrec = document.querySelector("#greek-text");
   if (!texteGrec) return;
 
   const VOIX = ["spyros", "kostas", "athina", "katerina"];
+  let session = 0; // change à chaque nouvelle lecture ou arrêt : l'ancienne boucle s'arrête
+  let audio = null;
+  let finir = null; // termine le morceau en cours (pour reculer ou avancer)
+  let saut = null; // prochain morceau demandé par ⏮ ou ⏭
+  let enCours = null; // morceau en train d'être lu
+  const enMemoire = new Map();
   const MIN_MORCEAU = 100; // caractères : en dessous, la phrase suivante est jointe
+  const memoire = {
+    lire: (cle, defaut) => {
+      try {
+        return localStorage.getItem(cle) ?? defaut;
+      } catch {
+        return defaut;
+      }
+    },
+    ecrire: (cle, valeur) => {
+      try {
+        localStorage.setItem(cle, valeur);
+      } catch {}
+    },
+  };
 
   // --- barre de lecture -------------------------------------------------------------------
   const barre = document.createElement("div");
   barre.className = "tgl-lecteur";
   barre.innerHTML = `
-    <button type="button" class="tgl-lecteur__lire">▶ Lire le texte</button>
-    <button type="button" class="tgl-lecteur__pause" hidden>⏸</button>
-    <button type="button" class="tgl-lecteur__stop" hidden>⏹</button>
-    <select class="tgl-lecteur__voix" title="Voix">${VOIX.map((v) => `<option>${v}</option>`).join("")}</select>
-    <span class="tgl-lecteur__etat" role="status"></span>`;
+    <button type="button" class="tgl-lecteur__allumer" title="Allumer le lecteur grec">🔊</button>
+    <div class="tgl-lecteur__commandes">
+      <button type="button" data-action="reculer" title="Revenir au début de la phrase (deux fois : phrase précédente)" disabled>⏮</button>
+      <button type="button" data-action="lire" class="tgl-lecteur__lire" title="Lire à partir du passage affiché">▶ Lire</button>
+      <button type="button" data-action="avancer" title="Phrase suivante" disabled>⏭</button>
+      <button type="button" data-action="arreter" title="Arrêter" disabled>⏹</button>
+      <select title="Voix">${VOIX.map((v) => `<option>${v}</option>`).join("")}</select>
+      <button type="button" data-action="eteindre" title="Éteindre le lecteur">⏻</button>
+      <span class="tgl-lecteur__etat" role="status"></span>
+    </div>`;
   document.body.append(barre);
-  const [boutonLire, boutonPause, boutonStop] = barre.querySelectorAll("button");
+  const bouton = (action) => barre.querySelector(`[data-action="${action}"]`);
   const choixVoix = barre.querySelector("select");
   const etat = barre.querySelector(".tgl-lecteur__etat");
-  try {
-    choixVoix.value = localStorage.getItem("tgl-lecteur-voix") || "spyros";
-  } catch {}
-  choixVoix.addEventListener("change", () => {
-    try {
-      localStorage.setItem("tgl-lecteur-voix", choixVoix.value);
-    } catch {}
-  });
+  choixVoix.value = memoire.lire("tgl-lecteur-voix", "spyros");
+  choixVoix.addEventListener("change", () => memoire.ecrire("tgl-lecteur-voix", choixVoix.value));
 
+  function allumer(oui) {
+    document.documentElement.classList.toggle("tgl-eteint", !oui);
+    memoire.ecrire("tgl-lecteur-allume", oui ? "1" : "0");
+    if (!oui) arreter();
+  }
+  barre.querySelector(".tgl-lecteur__allumer").addEventListener("click", () => allumer(true));
+  bouton("eteindre").addEventListener("click", () => allumer(false));
+
+  // --- marge : bouton ▶ par paragraphe et trait du passage lu ----------------------------------
   // Le site découpe un paragraphe en mots cliquables quand il apparaît à l'écran, ce qui
-  // efface son contenu : on remet le bouton ▶ chaque fois qu'il disparaît.
-  function ajouterBoutons() {
+  // efface son contenu : on remet nos éléments chaque fois qu'ils disparaissent.
+  const repere = document.createElement("span");
+  repere.className = "tgl-repere";
+
+  function garnirMarge() {
     for (const p of texteGrec.querySelectorAll("p")) {
+      p.classList.add("tgl-paragraphe");
       if (p.querySelector(":scope > .tgl-lire-ici")) continue;
       const b = document.createElement("button");
       b.type = "button";
@@ -46,14 +79,13 @@
       });
       p.prepend(b);
     }
+    if (enCours && !enCours.p.contains(repere)) placerRepere();
   }
-  ajouterBoutons();
-  new MutationObserver(ajouterBoutons).observe(texteGrec, { childList: true, subtree: true });
 
   // --- découpage du texte en morceaux à lire ---------------------------------------------
   // Le texte d'un paragraphe reste le même avant et après son découpage en mots par le site :
   // un morceau est repéré par sa position en caractères { p, debut, fin, texte }.
-  const ignorer = (n) => n.parentElement.closest(".text-milestone, .tgl-lire-ici");
+  const ignorer = (n) => n.parentElement.closest(".text-milestone, .tgl-lire-ici, .tgl-repere");
 
   function noeudsTexte(p) {
     const marcheur = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
@@ -84,8 +116,7 @@
       let a = debut;
       for (const m of texte.slice(debut, fin).matchAll(/[^.;·;!]+[.;·;!]*/g)) {
         const b = debut + m.index + m[0].length;
-        const long = texte.slice(a, b).trim().length;
-        if (long >= MIN_MORCEAU) {
+        if (texte.slice(a, b).trim().length >= MIN_MORCEAU) {
           sortie.push({ p, debut: a, fin: b });
           a = b;
         }
@@ -96,11 +127,36 @@
     return sortie.filter((m) => /\p{L}/u.test(m.texte));
   }
 
+  // Trait vertical dans la marge, à la hauteur des lignes du morceau lu.
+  function placerRepere() {
+    if (!enCours) return repere.remove();
+    const { p, debut, fin } = enCours;
+    const plage = document.createRange();
+    let pos = 0;
+    for (const n of noeudsTexte(p)) {
+      const l = n.textContent.length;
+      if (pos <= debut && debut < pos + l) plage.setStart(n, debut - pos);
+      if (pos < fin && fin <= pos + l) plage.setEnd(n, fin - pos);
+      pos += l;
+    }
+    const lignes = [...plage.getClientRects()].filter((r) => r.width > 1);
+    if (!lignes.length) return;
+    const haut = Math.min(...lignes.map((r) => r.top));
+    const bas = Math.max(...lignes.map((r) => r.bottom));
+    const cadre = p.getBoundingClientRect();
+    if (!p.contains(repere)) p.append(repere);
+    repere.style.top = `${haut - cadre.top}px`;
+    repere.style.height = `${bas - haut}px`;
+    if (haut < 80 || haut > innerHeight - 160) {
+      repere.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }
+
+  garnirMarge();
+  new MutationObserver(garnirMarge).observe(texteGrec, { childList: true, subtree: true });
+  addEventListener("resize", placerRepere);
+
   // --- lecture --------------------------------------------------------------------------
-  let session = 0; // change à chaque nouvelle lecture ou arrêt : l'ancienne boucle s'arrête
-  let audio = null;
-  let enCours = null; // morceau en train d'être lu
-  const enMemoire = new Map();
 
   function demander(texte, voix) {
     const cle = `${voix}|${texte}`;
@@ -119,28 +175,9 @@
     return enMemoire.get(cle);
   }
 
-  function surligner(morceau) {
-    for (const m of texteGrec.querySelectorAll(".tgl-en-lecture")) m.classList.remove("tgl-en-lecture");
-    if (!morceau) return;
-    // mots dont le texte tombe entre debut et fin (s'il n'est pas encore découpé en mots par le
-    // site, le paragraphe le sera en arrivant à l'écran, et on recommence un peu plus tard)
-    let pos = 0, premier = null;
-    for (const n of noeudsTexte(morceau.p)) {
-      const mot = n.parentElement.closest(".reader-token");
-      if (mot && pos < morceau.fin && pos + n.textContent.length > morceau.debut) {
-        mot.classList.add("tgl-en-lecture");
-        premier ??= mot;
-      }
-      pos += n.textContent.length;
-    }
-    const cible = premier || morceau.p;
-    const r = cible.getBoundingClientRect();
-    if (r.top < 80 || r.top > innerHeight - 160) cible.scrollIntoView({ block: "center", behavior: "smooth" });
-    if (!premier) setTimeout(() => morceau === enCours && surligner(morceau), 600);
-  }
-
   function jouer(b64, ma) {
     return new Promise((fini) => {
+      finir = fini;
       audio = new Audio(`data:audio/wav;base64,${b64}`);
       audio.addEventListener("ended", fini);
       audio.addEventListener("error", fini);
@@ -150,9 +187,10 @@
   }
 
   function interface(lecture) {
-    boutonPause.hidden = boutonStop.hidden = !lecture;
-    boutonLire.hidden = lecture;
-    boutonPause.textContent = "⏸";
+    for (const a of ["reculer", "avancer", "arreter"]) bouton(a).disabled = !lecture;
+    const lire = bouton("lire");
+    lire.textContent = lecture ? "⏸" : selectionDansTexte() ? "▶ Lire la sélection" : "▶ Lire";
+    lire.title = lecture ? "Pause" : "Lire à partir du passage affiché";
   }
 
   async function lire(liste) {
@@ -162,15 +200,19 @@
     const voix = choixVoix.value;
     interface(true);
     try {
-      for (let i = 0; i < liste.length && ma === session; i++) {
+      let i = 0;
+      while (i < liste.length && ma === session) {
         etat.textContent = enMemoire.has(`${voix}|${liste[i].texte}`) ? "" : "Préparation de la voix…";
         const b64 = await demander(liste[i].texte, voix);
         if (i + 1 < liste.length) demander(liste[i + 1].texte, voix).catch(() => {});
         if (ma !== session) break;
         etat.textContent = "";
-        enCours = liste[i];
-        surligner(enCours);
+        enCours = Object.assign(liste[i], { indice: i });
+        interface(true);
+        placerRepere();
         await jouer(b64, ma);
+        i = saut ?? i + 1;
+        saut = null;
       }
     } catch (err) {
       etat.textContent =
@@ -180,38 +222,54 @@
     if (ma === session) arreter();
   }
 
+  function sauter(vers) {
+    if (!enCours || !finir) return;
+    saut = Math.max(vers, 0);
+    audio.pause();
+    finir();
+  }
+
   function arreter() {
     session++;
     if (audio) audio.pause();
-    enCours = null;
-    surligner(null);
+    finir?.();
+    enCours = finir = saut = null;
+    placerRepere();
     interface(false);
   }
 
-  // « Lire le texte » lit la sélection s'il y en a une dans le texte grec, sinon tout depuis le début
+  // Sans lecture en cours, ▶ lit la sélection s'il y en a une dans le texte grec,
+  // sinon à partir du premier paragraphe visible à l'écran.
   function selectionDansTexte() {
     const s = getSelection();
     if (!s.rangeCount || s.isCollapsed) return null;
     const r = s.getRangeAt(0);
     return texteGrec.contains(r.commonAncestorContainer) || r.intersectsNode(texteGrec) ? r : null;
   }
-  document.addEventListener("selectionchange", () => {
-    boutonLire.textContent = selectionDansTexte() ? "▶ Lire la sélection" : "▶ Lire le texte";
-  });
-  boutonLire.addEventListener("mousedown", (e) => e.preventDefault()); // garder la sélection
-  boutonLire.addEventListener("click", () => {
-    const sel = selectionDansTexte();
-    lire(morceaux(null, sel));
-  });
-  boutonPause.addEventListener("click", () => {
-    if (!audio) return;
-    if (audio.paused) {
+  function premierVisible() {
+    // le premier paragraphe qui occupe encore le quart supérieur de l'écran
+    return [...texteGrec.querySelectorAll("p")].find((p) => p.getBoundingClientRect().bottom > innerHeight / 4);
+  }
+  document.addEventListener("selectionchange", () => !enCours && interface(false));
+  bouton("lire").addEventListener("mousedown", (e) => e.preventDefault()); // garder la sélection
+  bouton("lire").addEventListener("click", () => {
+    if (!enCours) {
+      const sel = selectionDansTexte();
+      lire(morceaux(sel ? null : premierVisible(), sel));
+    } else if (audio.paused) {
       audio.play();
-      boutonPause.textContent = "⏸";
+      bouton("lire").textContent = "⏸";
     } else {
       audio.pause();
-      boutonPause.textContent = "▶";
+      bouton("lire").textContent = "▶";
     }
   });
-  boutonStop.addEventListener("click", arreter);
+  // ⏮ : retour au début de la phrase ; si elle vient de commencer, phrase précédente
+  bouton("reculer").addEventListener("click", () =>
+    sauter(enCours.indice - (audio.currentTime < 2 ? 1 : 0)),
+  );
+  bouton("avancer").addEventListener("click", () => sauter(enCours.indice + 1));
+  bouton("arreter").addEventListener("click", arreter);
+
+  allumer(memoire.lire("tgl-lecteur-allume", "1") === "1");
 })();

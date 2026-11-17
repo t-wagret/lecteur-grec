@@ -58,10 +58,12 @@ Les morceaux trop courts sont d'abord réunis à leurs voisins, car le modèle l
 
 ## L'extension Chrome pour The Greek Library
 
-L'extension ajoute un bouton **▶** devant chaque paragraphe des textes de
-[The Greek Library](https://thegreeklibrary.pages.lisn.upsaclay.fr/), ainsi qu'une petite barre de lecture
-(pause, arrêt, choix de la voix : spyros, kostas, athina, katerina). Les mots lus sont surlignés.
-Si du texte grec est sélectionné, le bouton « Lire la sélection » ne lit que ce passage.
+L'extension ajoute aux textes de [The Greek Library](https://thegreeklibrary.pages.lisn.upsaclay.fr/)
+une petite barre de lecture en bas à droite : ⏮ revenir en arrière, ▶/⏸ lire ou mettre en pause,
+⏭ phrase suivante, ⏹ arrêter, choix de la voix (spyros, kostas, athina, katerina) et ⏻ éteindre
+(il ne reste alors qu'un petit bouton 🔊). « ▶ Lire » part du passage affiché à l'écran, ou ne lit que
+le texte grec sélectionné. Dans la marge, un bouton ▶ apparaît au survol de chaque paragraphe, et un
+trait doré suit le passage en cours de lecture.
 
 La voix est produite sur ton ordinateur par **Pocket TTS Greek**. Ce moteur est assez rapide pour lire à la
 demande, mais il ne règle pas les émotions : pour une lecture annotée, il faut passer par l'éditeur et Chatterbox.

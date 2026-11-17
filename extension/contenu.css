@@ -3,30 +3,34 @@
   right: 16px;
   bottom: 16px;
   z-index: 2147483000;
+  font: 14px/1.3 system-ui, sans-serif;
+}
+.tgl-lecteur__commandes {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  max-width: min(420px, calc(100vw - 32px));
-  padding: 8px 10px;
+  gap: 4px;
+  max-width: min(400px, calc(100vw - 32px));
+  padding: 6px 8px;
   border-radius: 10px;
   background: #fffdf7;
   color: #222;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
-  font: 14px/1.3 system-ui, sans-serif;
 }
 .tgl-lecteur button,
 .tgl-lecteur select {
   font: inherit;
-  padding: 4px 10px;
+  min-width: 2.2em;
+  padding: 4px 8px;
   border: 1px solid #bbb;
   border-radius: 6px;
   background: #fff;
   color: inherit;
   cursor: pointer;
 }
-.tgl-lecteur button[hidden] {
-  display: none;
+.tgl-lecteur button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 .tgl-lecteur__etat:empty {
   display: none;
@@ -36,27 +40,71 @@
   font-size: 12px;
   color: #555;
 }
-.tgl-lire-ici {
-  margin-right: 0.4em;
-  padding: 0 0.35em;
-  border: 1px solid currentColor;
-  border-radius: 4px;
-  background: none;
-  color: inherit;
-  opacity: 0.45;
-  font-size: 0.7em;
-  vertical-align: 0.15em;
-  cursor: pointer;
+
+/* éteint : il ne reste qu'un petit bouton rond 🔊 */
+.tgl-lecteur__allumer {
+  display: none;
 }
-.tgl-lire-ici:hover {
+.tgl-eteint .tgl-lecteur__commandes,
+.tgl-eteint .tgl-lire-ici,
+.tgl-eteint .tgl-repere {
+  display: none;
+}
+.tgl-eteint .tgl-lecteur__allumer {
+  display: block;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  background: #fffdf7;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  opacity: 0.6;
+}
+.tgl-eteint .tgl-lecteur__allumer:hover {
   opacity: 1;
 }
-.tgl-en-lecture {
-  background: rgba(255, 196, 0, 0.35);
-  border-radius: 2px;
+
+/* marge : bouton ▶ (visible au survol du paragraphe) et trait du passage lu */
+.tgl-paragraphe {
+  position: relative;
 }
+.tgl-lire-ici {
+  position: absolute;
+  top: 0.25em;
+  left: -2.6em;
+  width: 1.7em;
+  height: 1.7em;
+  padding: 0;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font-size: 0.75em;
+  line-height: 1;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.tgl-paragraphe:hover > .tgl-lire-ici,
+.tgl-lire-ici:focus-visible {
+  opacity: 0.5;
+}
+.tgl-lire-ici:hover {
+  opacity: 1 !important;
+}
+.tgl-repere {
+  position: absolute;
+  left: -0.9em;
+  width: 3px;
+  border-radius: 2px;
+  background: #d9a400;
+  pointer-events: none;
+  transition: top 0.25s, height 0.25s;
+}
+
 @media (prefers-color-scheme: dark) {
-  .tgl-lecteur {
+  .tgl-lecteur__commandes,
+  .tgl-eteint .tgl-lecteur__allumer {
     background: #2a2824;
     color: #eee;
   }
