@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Lecteur grec pour The Greek Library",
-  "version": "0.1.0",
-  "description": "Lit à voix haute les textes grecs de The Greek Library, avec une voix grecque produite sur ton ordinateur.",
-  "host_permissions": ["http://127.0.0.1:8766/*"],
+  "version": "0.2.0",
+  "description": "Lit à voix haute les textes grecs de The Greek Library, en prononciation restituée attique ou en grec moderne, avec une voix produite sur ton ordinateur.",
+  "host_permissions": ["http://127.0.0.1:8766/*", "http://127.0.0.1:8767/*"],
   "background": { "service_worker": "fond.js" },
   "content_scripts": [
     {

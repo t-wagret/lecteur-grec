@@ -60,13 +60,19 @@ Les morceaux trop courts sont d'abord réunis à leurs voisins, car le modèle l
 
 L'extension ajoute aux textes de [The Greek Library](https://thegreeklibrary.pages.lisn.upsaclay.fr/)
 une petite barre de lecture en bas à droite : ⏮ revenir en arrière, ▶/⏸ lire ou mettre en pause,
-⏭ phrase suivante, ⏹ arrêter, choix de la voix (spyros, kostas, athina, katerina) et ⏻ éteindre
+⏭ phrase suivante, ⏹ arrêter, choix de la voix et ⏻ éteindre
 (il ne reste alors qu'un petit bouton 🔊). « ▶ Lire » part du passage affiché à l'écran, ou ne lit que
 le texte grec sélectionné. Dans la marge, un bouton ▶ apparaît au survol de chaque paragraphe, et un
 trait doré suit le passage en cours de lecture.
 
-La voix est produite sur ton ordinateur par **Pocket TTS Greek**. Ce moteur est assez rapide pour lire à la
-demande, mais il ne règle pas les émotions : pour une lecture annotée, il faut passer par l'éditeur et Chatterbox.
+Deux sortes de voix, toutes produites sur ton ordinateur :
+- **attique restitué** (par défaut) : prononciation du Ve siècle avec accent de hauteur, par le modèle du dépôt
+  privé `grec-ancien-tts` ; lancer « Lancer la voix attique.command » dans ce dépôt ;
+- **grec moderne** (spyros, kostas, athina, katerina) : **Pocket TTS Greek**, lancé par
+  « Lancer le lecteur.command » dans ce dépôt.
+
+Les deux sont assez rapides pour lire à la demande, mais ne règlent pas les émotions : pour une lecture annotée,
+il faut passer par l'éditeur et Chatterbox.
 
 **Installation, une seule fois :**
 
@@ -80,8 +86,8 @@ Ensuite, dans Chrome :
 2. activer le **mode développeur**, en haut à droite ;
 3. cliquer sur **Charger l'extension non empaquetée** et choisir le dossier `extension/`.
 
-**À chaque utilisation :** double-cliquer sur `Lancer le lecteur.command` et laisser la fenêtre ouverte
-pendant la lecture. Au premier lancement, le modèle (environ 800 Mo) se télécharge.
+**À chaque utilisation :** double-cliquer sur le lanceur de la voix choisie et laisser la fenêtre ouverte
+pendant la lecture. Au premier lancement de Pocket TTS, son modèle (environ 800 Mo) se télécharge.
 
 ## Format d'annotation
 

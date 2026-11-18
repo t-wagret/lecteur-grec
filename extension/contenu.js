@@ -6,7 +6,7 @@
   const texteGrec = document.querySelector("#greek-text");
   if (!texteGrec) return;
 
-  const VOIX = ["spyros", "kostas", "athina", "katerina"];
+  const VOIX_MODERNES = ["spyros", "kostas", "athina", "katerina"];
   let session = 0; // change à chaque nouvelle lecture ou arrêt : l'ancienne boucle s'arrête
   let audio = null;
   let finir = null; // termine le morceau en cours (pour reculer ou avancer)
@@ -39,7 +39,10 @@
       <button type="button" data-action="lire" class="tgl-lecteur__lire" title="Lire à partir du passage affiché">▶ Lire</button>
       <button type="button" data-action="avancer" title="Phrase suivante" disabled>⏭</button>
       <button type="button" data-action="arreter" title="Arrêter" disabled>⏹</button>
-      <select title="Voix">${VOIX.map((v) => `<option>${v}</option>`).join("")}</select>
+      <select title="Voix">
+        <option value="attique">attique restitué</option>
+        <optgroup label="grec moderne">${VOIX_MODERNES.map((v) => `<option>${v}</option>`).join("")}</optgroup>
+      </select>
       <button type="button" data-action="eteindre" title="Éteindre le lecteur">⏻</button>
       <span class="tgl-lecteur__etat" role="status"></span>
     </div>`;
@@ -47,7 +50,7 @@
   const bouton = (action) => barre.querySelector(`[data-action="${action}"]`);
   const choixVoix = barre.querySelector("select");
   const etat = barre.querySelector(".tgl-lecteur__etat");
-  choixVoix.value = memoire.lire("tgl-lecteur-voix", "spyros");
+  choixVoix.value = memoire.lire("tgl-lecteur-voix", "attique");
   choixVoix.addEventListener("change", () => memoire.ecrire("tgl-lecteur-voix", choixVoix.value));
 
   function allumer(oui) {
@@ -216,7 +219,9 @@
       }
     } catch (err) {
       etat.textContent =
-        "Lecteur introuvable : double-clique sur « Lancer le lecteur.command » dans le dossier lecteur-grec, puis réessaie.";
+        voix === "attique"
+          ? "Voix attique introuvable : double-clique sur « Lancer la voix attique.command » dans le dossier grec-ancien-tts, puis réessaie."
+          : "Lecteur introuvable : double-clique sur « Lancer le lecteur.command » dans le dossier lecteur-grec, puis réessaie.";
       console.warn("Lecteur grec :", err);
     }
     if (ma === session) arreter();
